@@ -1,9 +1,5 @@
-fastapi
-uvicorn
-aiogram
-requests
-pydantic
 aiogram==3.12.0
 fastapi
 uvicorn
-openai
+requests
+pydantic
