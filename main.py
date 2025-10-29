@@ -7,25 +7,27 @@ from pydantic import BaseModel
 import requests
 import random
 
-# 🔹 Бот және серверді орнату
+# 🔹 Токендерді оқу
 BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
 
-# ✅ Тексеру (Render логында көрінеді)
+# 🔍 Логқа шығару
 print("🔍 DEBUG: TG_BOT_TOKEN =", BOT_TOKEN[:5] if BOT_TOKEN else "❌ None")
 print("🔍 DEBUG: OPENROUTER_API_KEY =", OPENROUTER_KEY[:5] if OPENROUTER_KEY else "❌ None")
 
-# ---- Егер токен мүлде жоқ болса, ботты іске қоспау ----
+# ---- Егер токен жоқ болса, тоқтатамыз ----
 if not BOT_TOKEN:
-    raise ValueError("❌ ERROR: TG_BOT_TOKEN табылмады. Render-де Environment Variable қосыңыз!")
+    raise ValueError("❌ ERROR: TG_BOT_TOKEN табылмады. Render → Environment → TG_BOT_TOKEN орнатыңыз.")
 if not OPENROUTER_KEY:
-    print("⚠️ Ескерту: OPENROUTER_API_KEY бос, AI комментарий жұмыс істемейді.")
+    print("⚠️ Ескерту: OPENROUTER_API_KEY бос, AI комментатор жұмыс істемейді.")
 
+# ---- Бот және диспетчер ----
 bot = Bot(token=str(BOT_TOKEN))
-dp = Dispatcher(bot)
+dp = Dispatcher()  # ✅ aiogram 3.x — енді осылай
+
 app = FastAPI()
 
-# ----- Ойын мәліметтері -----
+# ----- Ойын логикасы -----
 GAMES = {}
 
 class Game:
@@ -50,6 +52,8 @@ def get_game(chat_id):
 
 # ----- AI комментатор -----
 def get_ai_comment(winner_name, losers):
+    if not OPENROUTER_KEY:
+        return "😂 Комментатордың микрофоны өшіп қалған сияқты!"
     headers = {
         "Authorization": f"Bearer {OPENROUTER_KEY}",
         "Content-Type": "application/json"
@@ -69,7 +73,7 @@ def get_ai_comment(winner_name, losers):
         return "😂 Комментатор картасын жоғалтып алды!"
 
 # ----- /start -----
-@dp.message_handler(commands=["start"])
+@dp.message(commands=["start"])
 async def start_cmd(msg: types.Message):
     web_app_url = f"https://erzhan279.github.io/Durakkkkkkk/?chat={msg.chat.id}"
     markup = InlineKeyboardMarkup().add(
@@ -78,20 +82,8 @@ async def start_cmd(msg: types.Message):
     await msg.answer("🎮 Durak ойынына қош келдің!\nБатырманы басып ойынды баста:",
                      reply_markup=markup)
 
-# ----- /join -----
-class JoinReq(BaseModel):
-    user_id: int
-    chat_id: int
-
-@app.post("/join")
-async def join(req: JoinReq):
-    game = get_game(req.chat_id)
-    game.add_player(req.user_id)
-    await bot.send_message(req.chat_id, f"🧑‍💻 Ойыншы қосылды: {req.user_id}")
-    return {"ok": True}
-
 # ----- /endgame -----
-@dp.message_handler(commands=["endgame"])
+@dp.message(commands=["endgame"])
 async def end_game(msg: types.Message):
     game = get_game(msg.chat.id)
     if not game.players:
@@ -102,9 +94,9 @@ async def end_game(msg: types.Message):
     comment = get_ai_comment("Ойыншы " + str(winner), [str(l) for l in losers])
     await msg.answer(f"🏆 Ойыншы {winner} жеңді!\n\n🎤 {comment}")
 
-# ----- Сервер мен ботты іске қосу -----
+# ----- Сервер мен ботты бірге іске қосу -----
 async def start_bot():
-    await dp.start_polling()
+    await dp.start_polling(bot)
 
 @app.on_event("startup")
 async def on_startup():
