@@ -8,8 +8,8 @@ import requests
 import random
 
 # 🔹 Бот және серверді орнату
-BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
-OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
+BOT_TOKEN = os.getenv("8005464032:AAGZJW7DjwUI_CxRYm-5J4bPUEqGw1QbBwg")
+OPENROUTER_KEY = os.getenv("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")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
