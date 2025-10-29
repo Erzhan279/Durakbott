@@ -192,7 +192,7 @@ async def telegram_webhook(request: Request):
 @app.get("/game")
 async def serve_game(request: Request):
     # Note: do not include secret keys here. This page uses Telegram WebApp JS.
-    html = f"""
+    html = """
     <!doctype html>
     <html lang="kk">
     <head>
