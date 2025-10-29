@@ -2,9 +2,8 @@ import os
 import asyncio
 from fastapi import FastAPI
 from aiogram import Bot, Dispatcher, F, types
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, Message
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from aiogram.filters import Command
-from pydantic import BaseModel
 import requests
 import random
 
@@ -83,9 +82,15 @@ def get_ai_comment(winner_name, losers):
 @dp.message(Command("start"))
 async def start_cmd(msg: Message):
     web_app_url = f"https://erzhan279.github.io/Durakkkkkkk/?chat={msg.chat.id}"
+
+    # ✅ aiogram 3.x тәсілімен Web App батырма жасау
     markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton("🃏 Durak Mini App ашу", web_app=WebAppInfo(url=web_app_url))]
+        [InlineKeyboardButton(
+            text="🃏 Durak Mini App ашу",
+            web_app=types.WebAppInfo(url=web_app_url)
+        )]
     ])
+
     await msg.answer(
         "🎮 Durak ойынына қош келдің!\nБатырманы басып ойынды баста:",
         reply_markup=markup
