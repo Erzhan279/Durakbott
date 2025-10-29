@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher, types
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, Update
 import asyncio
 
 # -------------------------------
@@ -47,8 +47,15 @@ async def start_handler(message: types.Message):
 # -------------------------------
 @app.post("/webhook")
 async def webhook_handler(request: Request):
-    update = await request.json()
+    # Telegram-нан келген JSON-ды оқу
+    data = await request.json()
+
+    # dict -> Update түрлендіру
+    update = Update(**data)
+
+    # Dispatcher-ге жіберу
     await dp.feed_update(bot, update)
+
     return {"ok": True}
 
 # -------------------------------
