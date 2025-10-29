@@ -1,125 +1,75 @@
 import os
-import asyncio
-from fastapi import FastAPI
-from aiogram import Bot, Dispatcher, F, types
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
-from aiogram.filters import Command
-import requests
-import random
+from fastapi import FastAPI, Request
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from openai import OpenAI
 
-# -------------------------------
-# 🔹 Токендерді оқу
-# -------------------------------
-BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
-OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
+# === Токендер мен баптаулар ===
+BOT_TOKEN = os.getenv("TG_BOT_TOKEN") or "8005464032:AAGZJW7DjwUI_CxRYm-5J4bPUEqGw1QbBwg"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or "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"
+WEBHOOK_HOST = "https://durakbott.onrender.com"
+WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
+WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 
-# 🔍 Логқа шығару (жасырын түрде)
-print("🔍 DEBUG: TG_BOT_TOKEN =", BOT_TOKEN[:5] if BOT_TOKEN else "❌ None")
-print("🔍 DEBUG: OPENROUTER_API_KEY =", OPENROUTER_KEY[:5] if OPENROUTER_KEY else "❌ None")
-
-if not BOT_TOKEN:
-    raise ValueError("❌ ERROR: TG_BOT_TOKEN табылмады! Render → Environment → TG_BOT_TOKEN орнатыңыз.")
-
-# -------------------------------
-# 🔹 Инициализация
-# -------------------------------
-bot = Bot(token=str(BOT_TOKEN))
-dp = Dispatcher()
+# === FastAPI, Telegram және OpenRouter клиенттері ===
 app = FastAPI()
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
 
-# -------------------------------
-# 🔹 Ойын логикасы
-# -------------------------------
-GAMES = {}
-
-class Game:
-    def __init__(self, chat_id):
-        self.chat_id = chat_id
-        self.players = []
-        self.started = False
-        self.winner = None
-
-    def add_player(self, user_id):
-        if user_id not in self.players:
-            self.players.append(user_id)
-
-    def start(self):
-        self.started = True
-        self.winner = random.choice(self.players) if self.players else None
-
-def get_game(chat_id):
-    if chat_id not in GAMES:
-        GAMES[chat_id] = Game(chat_id)
-    return GAMES[chat_id]
-
-# -------------------------------
-# 🔹 AI комментатор
-# -------------------------------
-def get_ai_comment(winner_name, losers):
-    if not OPENROUTER_KEY:
-        return "😂 Комментатордың микрофоны өшіп қалған сияқты!"
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_KEY}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "model": "mistralai/mixtral-8x7b",
-        "messages": [
-            {"role": "system", "content": "Сен қазақша сөйлейтін комментаторсың. Әзіл мен эмоция қос, бірақ мәдениетті бол."},
-            {"role": "user", "content": f"Жеңімпаз: {winner_name}. Жеңілгендер: {', '.join(losers)}. Қысқа әзіл жаз."}
-        ]
-    }
-    try:
-        r = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
-        return r.json()["choices"][0]["message"]["content"]
-    except Exception as e:
-        print("AI comment error:", e)
-        return "😂 Комментатор картасын жоғалтып алды!"
-
-# -------------------------------
-# 🔹 /start командасы
-# -------------------------------
-@dp.message(Command("start"))
-async def start_cmd(msg: Message):
-    web_app_url = f"https://erzhan279.github.io/Durakkkkkkk/?chat={msg.chat.id}"
-
-    # ✅ aiogram 3.x тәсілімен Web App батырма жасау
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="🃏 Durak Mini App ашу",
-            web_app=types.WebAppInfo(url=web_app_url)
-        )]
+# === Start командасы ===
+@dp.message(commands=["start"])
+async def start_cmd(message: types.Message):
+    web_app_url = "https://erzhan279.github.io/Durakkkkkkk/"
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🃏 Durak Mini App ашу", web_app=WebAppInfo(url=web_app_url))]
     ])
+    await message.answer("Сәлем 👋\nDurak Mini App ойынын бастау үшін төмендегі батырманы бас:", reply_markup=keyboard)
 
-    await msg.answer(
-        "🎮 Durak ойынына қош келдің!\nБатырманы басып ойынды баста:",
-        reply_markup=markup
-    )
+# === /winner және /loser командалары ===
+@dp.message(commands=["winner"])
+async def winner(message: types.Message):
+    username = message.from_user.first_name
+    ai_response = get_ai_reaction(f"Ойыншы {username} Durak ойынында жеңді. Қазақша мақтау сөздермен, әзіл қосып жауап бер.")
+    await message.answer(ai_response)
 
-# -------------------------------
-# 🔹 /endgame командасы
-# -------------------------------
-@dp.message(Command("endgame"))
-async def end_game(msg: Message):
-    game = get_game(msg.chat.id)
-    if not game.players:
-        await msg.answer("Ойыншылар жоқ 😅")
-        return
-    winner = random.choice(game.players)
-    losers = [p for p in game.players if p != winner]
-    comment = get_ai_comment(f"Ойыншы {winner}", [str(l) for l in losers])
-    await msg.answer(f"🏆 Ойыншы {winner} жеңді!\n\n🎤 {comment}")
+@dp.message(commands=["loser"])
+async def loser(message: types.Message):
+    username = message.from_user.first_name
+    ai_response = get_ai_reaction(f"Ойыншы {username} Durak ойынында жеңілді. Қазақша жеңілді деп, әзілмен мазақта.")
+    await message.answer(ai_response)
 
-# -------------------------------
-# 🔹 Сервер мен ботты бірге іске қосу
-# -------------------------------
-async def start_bot():
-    await dp.start_polling(bot)
+# === OpenRouter AI жауап функциясы ===
+def get_ai_reaction(prompt: str) -> str:
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Сен Durak ойынының көңілді комментаторысың."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"AI жауап бере алмады 😅 ({e})"
 
+# === Webhook орнату және сервер ===
 @app.on_event("startup")
 async def on_startup():
-    asyncio.create_task(start_bot())
+    await bot.set_webhook(WEBHOOK_URL)
+    print(f"🚀 Webhook орнатылды: {WEBHOOK_URL}")
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    await bot.delete_webhook()
+
+@app.post(WEBHOOK_PATH)
+async def telegram_webhook(request: Request):
+    data = await request.json()
+    update = types.Update(**data)
+    await dp.feed_update(bot, update)
+    return {"ok": True}
 
 @app.get("/")
-def root():
-    return {"status": "Bot is running!"}
+async def root():
+    return {"status": "Durak bot with AI is running 🚀"}
