@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from aiogram.filters import Command
 from openai import OpenAI
 
 # === Токендер мен баптаулар ===
@@ -17,8 +18,8 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
 
-# === Start командасы ===
-@dp.message(commands=["start"])
+# === /start командасы ===
+@dp.message(Command("start"))
 async def start_cmd(message: types.Message):
     web_app_url = "https://erzhan279.github.io/Durakkkkkkk/"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -27,13 +28,13 @@ async def start_cmd(message: types.Message):
     await message.answer("Сәлем 👋\nDurak Mini App ойынын бастау үшін төмендегі батырманы бас:", reply_markup=keyboard)
 
 # === /winner және /loser командалары ===
-@dp.message(commands=["winner"])
+@dp.message(Command("winner"))
 async def winner(message: types.Message):
     username = message.from_user.first_name
     ai_response = get_ai_reaction(f"Ойыншы {username} Durak ойынында жеңді. Қазақша мақтау сөздермен, әзіл қосып жауап бер.")
     await message.answer(ai_response)
 
-@dp.message(commands=["loser"])
+@dp.message(Command("loser"))
 async def loser(message: types.Message):
     username = message.from_user.first_name
     ai_response = get_ai_reaction(f"Ойыншы {username} Durak ойынында жеңілді. Қазақша жеңілді деп, әзілмен мазақта.")
