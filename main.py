@@ -8,10 +8,20 @@ import requests
 import random
 
 # 🔹 Бот және серверді орнату
-BOT_TOKEN = os.getenv("8005464032:AAGZJW7DjwUI_CxRYm-5J4bPUEqGw1QbBwg")
-OPENROUTER_KEY = os.getenv("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")
+BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
+OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
 
-bot = Bot(token=BOT_TOKEN)
+# ✅ Тексеру (Render логында көрінеді)
+print("🔍 DEBUG: TG_BOT_TOKEN =", BOT_TOKEN[:5] if BOT_TOKEN else "❌ None")
+print("🔍 DEBUG: OPENROUTER_API_KEY =", OPENROUTER_KEY[:5] if OPENROUTER_KEY else "❌ None")
+
+# ---- Егер токен мүлде жоқ болса, ботты іске қоспау ----
+if not BOT_TOKEN:
+    raise ValueError("❌ ERROR: TG_BOT_TOKEN табылмады. Render-де Environment Variable қосыңыз!")
+if not OPENROUTER_KEY:
+    print("⚠️ Ескерту: OPENROUTER_API_KEY бос, AI комментарий жұмыс істемейді.")
+
+bot = Bot(token=str(BOT_TOKEN))
 dp = Dispatcher(bot)
 app = FastAPI()
 
